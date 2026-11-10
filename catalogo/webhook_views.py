@@ -11,6 +11,10 @@ Eventos manejados:
     payment_intent.succeeded     → Pedido.estado = 'pagado'
                                     Descontar stock de productos
     payment_intent.payment_failed → Pedido.estado = 'cancelado'
+
+Compatibilidad:
+    Con stripe >= 15 el evento real es un StripeObject y no un dict,
+    así que NO se usa .get(); se lee con _leer(), que sirve para ambos.
 """
 import logging
 
@@ -25,6 +29,26 @@ from productos.models import Producto
 from ventas.models    import Pedido
 
 logger = logging.getLogger(__name__)
+
+
+def _leer(obj, clave, defecto=None):
+    """Lee una clave de un dict o de un StripeObject (stripe >= 15).
+
+    Usa obj[clave] porque funciona en ambos; .get() no existe en
+    StripeObject a partir de stripe 15.
+
+    Args:
+        obj:     dict o StripeObject.
+        clave:   nombre de la clave a leer.
+        defecto: valor si la clave no existe.
+
+    Returns:
+        El valor de la clave, o 'defecto' si no está.
+    """
+    try:
+        return obj[clave]
+    except (KeyError, TypeError, AttributeError, IndexError):
+        return defecto
 
 
 @csrf_exempt
@@ -65,14 +89,15 @@ def stripe_webhook(request) -> HttpResponse:
         return HttpResponse('Firma inválida.', status=400)
 
     # ── 2. Despachar por tipo de evento ────────────────────────────────────
-    tipo = event['type']
+    tipo = _leer(event, 'type')
+    objeto = _leer(_leer(event, 'data', {}), 'object', {})
     logger.info(f'Webhook recibido: {tipo}')
 
     if tipo == 'payment_intent.succeeded':
-        _manejar_pago_exitoso(event['data']['object'])
+        _manejar_pago_exitoso(objeto)
 
     elif tipo == 'payment_intent.payment_failed':
-        _manejar_pago_fallido(event['data']['object'])
+        _manejar_pago_fallido(objeto)
 
     else:
         logger.debug(f'Evento ignorado: {tipo}')
@@ -84,7 +109,7 @@ def stripe_webhook(request) -> HttpResponse:
 
 # ── HANDLERS INTERNOS ──────────────────────────────────────────────────────
 
-def _manejar_pago_exitoso(payment_intent: dict) -> None:
+def _manejar_pago_exitoso(payment_intent) -> None:
     """Procesa un pago confirmado por Stripe.
 
     Actualiza el Pedido a 'pagado' y descuenta el stock de productos.
@@ -119,7 +144,7 @@ def _manejar_pago_exitoso(payment_intent: dict) -> None:
         )
 
 
-def _manejar_pago_fallido(payment_intent: dict) -> None:
+def _manejar_pago_fallido(payment_intent) -> None:
     """Procesa un pago fallido o rechazado.
 
     Actualiza el Pedido a 'cancelado'.
@@ -145,8 +170,10 @@ def _manejar_pago_fallido(payment_intent: dict) -> None:
         )
 
 
-def _extraer_pedido_id(payment_intent: dict) -> int | None:
+def _extraer_pedido_id(payment_intent) -> int | None:
     """Extrae el pedido_id del metadata del PaymentIntent.
+
+    Funciona con dict (stripe < 15) y con StripeObject (stripe >= 15).
 
     Args:
         payment_intent: objeto PaymentIntent de Stripe.
@@ -154,13 +181,13 @@ def _extraer_pedido_id(payment_intent: dict) -> int | None:
     Returns:
         int con el ID del pedido, o None si no está en el metadata.
     """
-    metadata  = payment_intent.get('metadata', {})
-    pedido_id = metadata.get('pedido_id')
+    metadata  = _leer(payment_intent, 'metadata', {}) or {}
+    pedido_id = _leer(metadata, 'pedido_id')
 
     if not pedido_id:
         logger.warning(
             f'Webhook: PaymentIntent sin pedido_id en metadata. '
-            f'ID de PaymentIntent: {payment_intent.get("id")}'
+            f'ID de PaymentIntent: {_leer(payment_intent, "id")}'
         )
         return None
 
