@@ -7,7 +7,7 @@
 | **Nombre del ciclo** | E-commerce y Pagos |
 | **Semanas** | W13 – W15 |
 | **Fecha de inicio** | ___/___/_____ |
-| **Fecha de cierre** | 09/11/2026 |
+| **Fecha de cierre** | 10/11/2026 |
 | **Responsable** | Felipe Sánchez Vázquez |
 | **Asesor** | MC. Román Fernando López González |
 
@@ -33,14 +33,18 @@ automática vía webhook con descuento de stock.
 | 11 | Webhook endpoint con verificación de firma | ✅ | W15 |
 | 12 | Descuento de stock con F() | ✅ | W15 |
 | 13 | Tests con mock (Stripe + webhook) | ✅ | W15 |
+| 14 | Webhook compatible con StripeObject (stripe >= 15) + test de regresión | ✅ | W15 |
 
 ## 3. Evidencias
 - Sitio desplegado: https://felipelxng.onrender.com/catalogo/
 - Webhook verificado en local con Stripe CLI (`stripe listen`)
-- Tests: Ran 157 tests → OK
+- Webhook configurado en el dashboard de Stripe (destino `render-felipelxng` →
+  https://felipelxng.onrender.com/catalogo/webhook/) y verificado en
+  producción: pedido 'pagado' y stock decrementado
+- Tests: Ran 158 tests → OK
 - Pedido 'pendiente' → 'pagado' via webhook verificado en /admin/
 - Pedido 'pendiente' → 'cancelado' con tarjeta de rechazo (4000 0000 0000 9995)
-- Stock decrementado verificado en /admin/productos/
+- Stock decrementado verificado en /admin/productos/ y en el catálogo
 
 ## 4. Criterios de aceptación
 
@@ -53,7 +57,7 @@ automática vía webhook con descuento de stock.
 | Webhook payment_intent.succeeded → Pedido 'pagado' | ✅ |
 | Stock decrementado con F() (atómico) | ✅ |
 | Firma inválida → 400 | ✅ |
-| 157 tests OK | ✅ |
+| 158 tests OK | ✅ |
 
 ## 5. Problemas encontrados
 1. **Red bloqueada.** La red del aula bloqueaba GitHub y Stripe
@@ -71,6 +75,15 @@ automática vía webhook con descuento de stock.
 5. **Stripe CLI nueva.** La versión 1.55.9 exige `--events` en
    `stripe listen`. Se usó
    `--events payment_intent.succeeded,payment_intent.payment_failed`.
+6. **Webhook con StripeObject.** Con `stripe >= 15` el evento real es un
+   `StripeObject` y no un `dict`, así que `.get()` provocaba un HTTP 500.
+   Se leyeron las claves con `obj[clave]` mediante la función `_leer()` y
+   se agregó el test `WebhookStripeObjectTest` (corrección de la guía W15).
+7. **Render sin llaves de Stripe.** En producción salía `Invalid API Key`
+   porque las variables de entorno no existían y se usaba el valor de
+   relleno. Se crearon `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` y
+   `STRIPE_WEBHOOK_SECRET` en Render, esta última con la firma del destino
+   creado en el dashboard de Stripe (distinta a la de la CLI).
 
 ## 6. Lecciones aprendidas
 1.
