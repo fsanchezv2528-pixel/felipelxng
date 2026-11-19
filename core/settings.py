@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     # Terceros
     'rest_framework',
     'rest_framework.authtoken',
+    'anymail',          # W17
     'django_filters',
     'whitenoise.runserver_nostatic',
     # Apps del ERP
