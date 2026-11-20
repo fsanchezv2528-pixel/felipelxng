@@ -42,3 +42,17 @@ stock bajo y reporte diario de ventas.
 | SendGrid correo transaccional real | ⏳ W17 |
 | Alerta de stock bajo por correo | ⏳ W17 |
 | Celery Beat + tareas programadas | ⏳ W18 |
+
+## Sprint 5 — Estado final W18
+
+| HU | Estado | Pts |
+|---|---|---|
+| HU-E6-01 a HU-E6-06 | ✅ Completadas | 18/18 |
+
+## Hito M6 — ALCANZADO ✅
+- Correo: enviar_confirmacion_pedido → enviado post-pago
+- Alerta: verificar_stock_bajo → correo al admin
+- Reporte: crontab(hour=8, minute=0) → 8:00 AM diario
+- Stock: verificar_stock_bajo cada hora (timedelta)
+- Tests: Ran 183 tests → OK
+- Fecha: 19/11/2026

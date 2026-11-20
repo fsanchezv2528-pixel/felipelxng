@@ -47,6 +47,24 @@ services:
       REDIS_URL: redis://redis:6379/0
       ALLOWED_HOSTS: localhost,127.0.0.1
 
+  # ── Celery Beat — Scheduler de tareas programadas — W18 ────────────
+  # Beat NUNCA debe tener más de una instancia (un solo scheduler)
+  celery_beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A core beat -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - db
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings_prod
+      SECRET_KEY:             dev-clave-docker-no-usar-en-produccion
+      DATABASE_URL:           postgres://erp_user:erp_pass_local@db:5432/erp_db
+      REDIS_URL:              redis://redis:6379/0
+
+
 volumes:
   postgres_data:
   static_volume:

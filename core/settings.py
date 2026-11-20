@@ -1,5 +1,6 @@
 # core/settings.py
 import environ
+from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -281,3 +282,25 @@ SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
 ANYMAIL = {
     'SENDGRID_API_KEY': SENDGRID_API_KEY,
 }
+
+# ── CELERY BEAT — Tareas programadas (W18) ────────────────────────────────
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    # Verificar stock bajo cada hora (intervalo → timedelta)
+    'verificar-stock-bajo-cada-hora': {
+        'task':     'ventas.verificar_stock_bajo',
+        'schedule': timedelta(hours=1),
+        'args':     (5,),   # umbral = 5 unidades
+        'options':  {'queue': 'erp_django'},
+    },
+    # Reporte de ventas diario a las 8:00 AM (hora exacta → crontab)
+    'reporte-ventas-diario-8am': {
+        'task':     'ventas.reporte_ventas_diario',
+        'schedule': crontab(hour=8, minute=0),
+        'options':  {'queue': 'erp_django'},
+    },
+}
+
+# Beat usa la zona horaria de CELERY_TIMEZONE (America/Mexico_City)
+CELERY_BEAT_TIMEZONE = TIME_ZONE
